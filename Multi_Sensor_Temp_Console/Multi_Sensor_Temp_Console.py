@@ -58,25 +58,23 @@ def start_save(link_dict):
             file_list.append(f)
         return file_list
 
-def run_update(tcp_link_list , tcp_file_list):
-    Timer(1 , update_temp, (tcp_link_list , tcp_file_list)).start()
+def run_update(tcp_link_list , tcp_file_list, q_mode=False):
+    Timer(1 , update_temp, (tcp_link_list , tcp_file_list, q_mode)).start()
 
-def update_temp(tcp_link_list , tcp_file_list):
-    print("Updating temp")
-    print("IP:                  "
-          "Time (s)             "
-          "Board Temp (C)       "
-          "Laser Case Temp (C)  "
-          "FPGA Temp (C)        ")
+def update_temp(tcp_link_list , tcp_file_list, q_mode= False):
+    if not q_mode:
+        print("Updating temp")
+        print("IP:                  "
+              "Time (s)             "
+              "Board Temp (C)       "
+              "Laser Case Temp (C)  "
+              "FPGA Temp (C)        ")
     for IP , file in zip(tcp_link_list , tcp_file_list):
-        #print(tcp_link_list[IP] , file)
-        get_read_back(tcp_link_list[IP], file, IP)
-    run_update(tcp_link_list , tcp_file_list)
+        get_read_back(tcp_link_list[IP], file, IP, q_mode)
+    run_update(tcp_link_list , tcp_file_list, q_mode)
 
-def get_read_back(link , file, IP):
+def get_read_back(link , file, IP, q_mode=False):
     message = link.read_back_quite()
-            
-    #print("Link: {} File: {}".format(link, file))
 
     if len(message):
         time_val , brd_tmp_val , l_temp_val , fpga_temp_val = line_parser(message)
@@ -88,29 +86,33 @@ def get_read_back(link , file, IP):
                         )
         file.write(save_message)
 
-    #print("Link: {}".format(link))
-    print(str(IP) + " :         " + save_message.replace("," , "             "))
+    if not q_mode:
+        print(str(IP) + " :         " + save_message.replace("," , "             "))
 
 def line_parser(line):
     line_elements = line.split()
     return line_elements[0] , line_elements[3] , line_elements[4] , line_elements[9]
 
-def main():
+## Console Mode
+
+def Console_Mode(sys_arg_ip , settings):
+
+    print("Running Console Mode")
+
     tcp_ip_list = []
     tcp_link_list = {}
     global g_tcp_file_list
 
-    if 1 < len(sys.argv) < 6:
-        for num , ip in enumerate(sys.argv[1:]):
-            if check_vaild_ip(ip):
-                if ip in sys.argv[num+2:]:
-                    print("Dup IP found " + str(ip))
+    if sys_arg_ip:
+        for IP in sys_arg_ip:
+            if check_vaild_ip(IP):
+                if sys_arg_ip.count(IP) > 1:
+                    print("More than one instance of an IP was found: {}".format(IP))
                     break
                 else:
-                    tcp_ip_list.append(ip)
-                    print("Num {} IP {}".format(num , ip))
-    else:
-        print("Arg Error")
+                    tcp_ip_list.append(IP)
+
+    print(tcp_ip_list)
 
     for num in range(0,len(tcp_ip_list)):
         #print(num , tcp_ip_list[num])
@@ -121,23 +123,26 @@ def main():
         if connected:
             tcp_link_list[link_ip] = link
 
-    #tcp_link_list["10.42.0.10"] = "Link"
-    #tcp_link_list["10.42.0.12"] = "Link"
-    #tcp_link_list["10.42.0.14"] = "Link"
-
     if tcp_link_list:
         print("active systems")
         tcp_file_list = start_save(tcp_link_list)
-        #print(tcp_file_list , g_tcp_file_list)
         g_tcp_file_list = tcp_file_list
-        #print(tcp_file_list , g_tcp_file_list)
         if len(tcp_link_list) == len(tcp_file_list):
-            run_update(tcp_link_list , tcp_file_list)
+            run_update(tcp_link_list , tcp_file_list, settings['-q'])
         else:
             print("Error: mismatch in save file lenght")
     else:
         print("Error: Was not able to connect to any systems")
 
+## GUI_Mode
+
+def GUI_Mode():
+    print("Running in GUI Mode")
+
+## Handlers For Console Exit
+
+# At exit not working as intented
+# Closing console will still fail to save CSV
 @atexit.register
 def exit_handler():
     g_file_handler()
@@ -155,5 +160,69 @@ def g_file_handler():
         for file in g_tcp_file_list:
             file.close()
 
+## Main
+
+def par_sys_argv():
+    IP_list = []
+    sys_arg_settings = {}
+    sys.argv.pop(0)
+
+    if sys.argv:
+
+        # Help mode
+        if "-h" in sys.argv:
+            print(
+                  "Commands:                                                            \n"
+                  " -ip  n.n.n.n  n.n.n.n ...                                           \n"
+                  "  IP mode will try to connect to up to 4 sensors                     \n"
+                  " -q                                                                  \n"
+                  "  Runs in quite mode, will not display temp readouts in console      \n"
+                  " -gui                                                                \n"
+                  "  Runs the GUI for temp readout                                      \n"
+                  "  Note: Running -gui will ignore other commands and only run GUI mode\n"
+                  )
+            sys.exit(1)
+
+        # Console mode, displays console
+        if '-gui' in sys.argv:
+            sys.argv.remove('-gui')
+            print("Running GUI Mode..")
+            sys_arg_settings['-gui'] = True
+            return None , sys_arg_settings
+        else:
+            sys_arg_settings['-gui'] = False
+
+        # Quite mode, will not print out data
+        if "-q" in sys.argv:
+            sys.argv.remove("-q")
+            print("Quite Mode")
+            sys_arg_settings['-q'] = True
+        else:
+            sys_arg_settings['-q'] = False
+
+        # Reads in IP's
+        if "-ip" in sys.argv:
+            start_index = sys.argv.index("-ip")
+            if len(sys.argv[start_index:]) > 1:
+                for IP in sys.argv[start_index+1:]:
+                    if "-" in IP.strip():
+                        break
+                    else:
+                        IP_list.append(IP)
+            else:
+                print("Error: No IP's were found")
+                
+    else:
+        print("Running GUI mode")
+        sys_arg_settings['-gui'] = True
+        return None , sys_arg_settings
+
+    return IP_list , sys_arg_settings
+
 if __name__ == "__main__":
-    main()
+    sys_arg_ip , settings = par_sys_argv()
+
+    if settings['-gui'] == True:
+        GUI_Mode()
+    else:
+        Console_Mode(sys_arg_ip , settings)
