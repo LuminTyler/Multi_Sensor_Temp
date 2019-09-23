@@ -25,6 +25,7 @@ class Multi_Head_Window(QtWidgets.QMainWindow):
         self.setWindowTitle('Luminar Multi-Sensor Temperature Readout')
         self.show()
         self.error_message = ""
+        self.save_location = ""
         self.sys_ip = 0
         self.keep_alive = 1
         self.trigger_val = 0
@@ -60,12 +61,12 @@ class Multi_Head_Window(QtWidgets.QMainWindow):
 
     ## Save file Section
 
-    ## TODO: Add saving to location
-
     def start_save(self):
         if not(any(self.sys_active)):
             self.console_box.append("No active links found: nothing to save")
         else:
+            if self.save_location != "":
+                os.chdir(self.save_location)
             cur_time = datetime.datetime.today().strftime("%m_%d_%Y %H_%M_%S")
             os.mkdir(cur_time)
             os.chdir(cur_time)
@@ -260,6 +261,7 @@ class Multi_Head_Window(QtWidgets.QMainWindow):
         self.filename_box.clear()
         if is_pathname_valid(self.filepath):
             self.filename_box.setText(self.filepath)
+            self.save_location = self.filepath
         else:
             self.error_message = "Not a Vaild Filepath"
             self.console_box.append(self.error_message)

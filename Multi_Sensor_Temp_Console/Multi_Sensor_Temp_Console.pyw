@@ -9,6 +9,8 @@ import Multi_Sensor_Temp_GUI as GUI_MODE
 
 g_tcp_file_list = []
 
+# TODO: Add comments...
+
 def attempt_connect(IP):
         connected = 0
         print("Attempting to connect to {}".format(IP) )
