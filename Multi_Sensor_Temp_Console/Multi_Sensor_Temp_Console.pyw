@@ -5,6 +5,8 @@ from IsFileCheck import *
 from CheckIPVaild import *
 import TCP_Connect as tcp
 
+import Multi_Sensor_Temp_GUI as GUI_MODE
+
 g_tcp_file_list = []
 
 def attempt_connect(IP):
@@ -26,7 +28,7 @@ def attempt_connect(IP):
             new_link.send_command("")
             new_link.send_command(command)
         else:
-            print("Was not able to connect")
+            pass
 
         if connected:
             return True , new_link
@@ -118,7 +120,6 @@ def Console_Mode(sys_arg_ip , settings):
         #print(num , tcp_ip_list[num])
         link_ip = tcp_ip_list[num]
         connected , link = attempt_connect(link_ip)
-        print(connected , link)
 
         if connected:
             tcp_link_list[link_ip] = link
@@ -185,7 +186,7 @@ def par_sys_argv():
 
         # Console mode, displays console
         if '-gui' in sys.argv:
-            sys.argv.remove('-gui')
+            #sys.argv.remove('-gui')
             print("Running GUI Mode..")
             sys_arg_settings['-gui'] = True
             return None , sys_arg_settings
@@ -194,7 +195,7 @@ def par_sys_argv():
 
         # Quite mode, will not print out data
         if "-q" in sys.argv:
-            sys.argv.remove("-q")
+            #sys.argv.remove("-q")
             print("Quite Mode")
             sys_arg_settings['-q'] = True
         else:
@@ -223,6 +224,6 @@ if __name__ == "__main__":
     sys_arg_ip , settings = par_sys_argv()
 
     if settings['-gui'] == True:
-        GUI_Mode()
+        GUI_MODE.Multi_Sensor()
     else:
         Console_Mode(sys_arg_ip , settings)
